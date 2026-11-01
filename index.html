@@ -1,63 +1,18 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0b0b0b">
-<title>GOLD AI TRADER PRO – OWM EDITION</title>
-<link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css">
-</head>
-<body>
-<header>
-  <img src="icon.svg" width="38" height="38" alt="">
-  <div><h1>GOLD AI TRADER PRO</h1><small>OWM EDITION · XAUUSD</small></div>
-  <button id="refresh" title="تحديث">⟳</button>
-</header>
-<main>
-  <section class="card" id="priceCard">
-    <div class="row"><span id="market" class="pill">…</span><span id="net" class="pill">…</span></div>
-    <div id="price" class="price">--</div>
-    <div class="row sm"><span>التغير اليومي: <b id="chg">--</b></span><span>السبريد: <b id="spread">--</b></span></div>
-    <div class="row sm"><span>آخر تحديث: <b id="upd">--</b></span><span>الشمعة: <b id="timer">--:--</b></span></div>
-    <div class="row sm"><span>توقيت ليبيا: <b id="clock">--</b></span></div>
-    <div id="err" class="err" hidden></div>
-  </section>
-
-  <div class="tf"><button data-tf="5m">5 دقائق</button><button data-tf="15m">15 دقيقة</button></div>
-
-  <section class="card"><canvas id="chart" height="300"></canvas></section>
-
-  <section class="card" id="sigCard">
-    <div class="sig" id="sig">WAIT</div>
-    <div id="sigAr" class="center">انتظار</div>
-    <div class="center sm">درجة توافق المؤشرات: <b id="score">--</b> <small>(ليست احتمال نجاح)</small></div>
-    <ul id="reasons"></ul>
-    <div class="grid" id="trade">
-      <div>Entry<b id="entry">--</b></div><div>Stop Loss<b id="sl">--</b></div>
-      <div>TP1<b id="tp1">--</b></div><div>TP2<b id="tp2">--</b></div>
-      <div>R/R TP1<b id="rr1">--</b></div><div>R/R TP2<b id="rr2">--</b></div>
-    </div>
-  </section>
-
-  <section class="card"><h2>المؤشرات</h2>
-    <div class="grid" id="ind"></div>
-  </section>
-
-  <section class="card"><h2>إدارة رأس المال</h2>
-    <label>رأس المال ($)<input id="cap" type="number" min="1" step="1"></label>
-    <label>المخاطرة: <b id="riskV"></b>%<input id="risk" type="range" min="1" max="5" step="0.5"></label>
-    <label>حجم العقد (أونصة لكل 1 لوت) – اختياري، من مواصفات وسيطك<input id="cs" type="number" min="0" step="any" placeholder="مثال: 100"></label>
-    <div class="grid" id="calc"></div>
-  </section>
-
-  <section class="card"><h2>جلسات التداول (توقيت ليبيا)</h2><div id="sessions"></div></section>
-  <label class="card chk"><input type="checkbox" id="notify"> تفعيل التنبيه عند ظهور إشارة جديدة</label>
-</main>
-<footer>
-  أداة تحليلية فقط، وليست نصيحة مالية ولا تنفذ صفقات. التداول ينطوي على مخاطر عالية.<br>
-  مصدر البيانات: biquote.io (تغذية MT5) وقد يختلف سعره عن سعر OW Markets.
-</footer>
-<script src="app.js"></script>
-</body>
-</html>
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>GOLD SIGNAL STRATEGY PRO</title><link rel="stylesheet" href="style.css"></head><body>
+<header><h1>GOLD SIGNAL STRATEGY PRO</h1><div class="meta"><span id="clock">--</span><span id="upd">آخر تحديث: --</span></div>
+<div class="src">المصدر: Binance PAXGUSDT (رمز مدعوم بالذهب) — قد يختلف السعر عن XAUUSD في OW Markets.</div></header>
+<nav id="tfs"></nav><p id="hold" class="note"></p>
+<div id="err" class="err" hidden></div>
+<section id="card" class="card wait"><div id="cardBody">جاري التحميل…</div></section>
+<section class="chartbox"><canvas id="ch"></canvas><canvas id="rs"></canvas><div class="chips" id="chips"></div></section>
+<details open><summary>حاسبة الربح والخسارة</summary><div class="grid">
+<label>حجم العقد (لوت)<input id="lot" type="number" step="0.01" value="0.01"></label>
+<label>قيمة حركة 1.00$ لكل 1 لوت ($)<input id="vpl" type="number" value="100"></label>
+<label>السبريد (بالسعر)<input id="spr" type="number" step="0.01" value="0"></label>
+<label>عمولة لكل لوت ($)<input id="com" type="number" step="0.1" value="0"></label></div>
+<p class="note">الربح/الخسارة = فرق السعر × قيمة الحركة لكل لوت × الحجم. الافتراض: 100$ لكل لوت = 1$ لكل 1.00$ على 0.01. عدّل القيمة حسب مواصفات عقدك.</p></details>
+<details open><summary>سجل الصفقات (اختبار تاريخي على البيانات المحمّلة)</summary><div id="stats" class="grid"></div><div class="tw"><table id="jr"></table></div>
+<p class="note">القاعدة المسبقة: ربح = بلوغ TP1 قبل SL. خسارة = SL أولاً. إن لمس الاثنين في شمعة واحدة تُسجَّل «غير محسومة» (لا تُستخدم بيانات فريم أصغر). النتائج لا تتغير بأثر رجعي.</p></details>
+<footer>تحذير: تحليل تعليمي وليس نصيحة مالية. التداول بالذهب عالي المخاطر وقد تخسر رأس مالك. لا يوجد تنفيذ آلي ولا ضمان لنسبة نجاح. أدخل الصفقات يدوياً على MT5 وتحقق من أسعار وسيطك.</footer>
+<script src="core.js"></script><script src="app.js"></script></body></html>
