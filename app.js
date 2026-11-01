@@ -7,11 +7,24 @@ $('tfs').innerHTML=Object.keys(TF).map(k=>`<button data-k="${k}">${TF[k][1]}</bu
 $('tfs').onclick=e=>{const k=e.target.dataset.k;if(k){tf=k;localStorage.setItem('gss_tf',k);refresh()}};
 ['lot','vpl','spr','com'].forEach(i=>$(i).oninput=()=>D&&render());
 setInterval(()=>$('clock').textContent='ليبيا: '+new Date().toLocaleTimeString('ar-LY',{timeZone:'Africa/Tripoli',hour12:false}),1000);
-async function load(){const hosts=['https://api.binance.com','https://data-api.binance.vision'];let err;
- for(const h of hosts){try{const r=await fetch(`${h}/api/v3/klines?symbol=PAXGUSDT&interval=${tf}&limit=500`);if(!r.ok)throw Error('HTTP '+r.status);const j=await r.json();
-  if(!Array.isArray(j)||!j.length||!Array.isArray(j[0])||j[0].length<7)throw Error('شكل البيانات غير متوقع');
-  return j.map(k=>({t:k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4],ct:k[6]}))}catch(e){err=e}}
- throw err}
+// XAUUSD feed adapter. Configure a public CORS-enabled candle endpoint in
+// XAUUSD_FEED_URL below. Expected response: array of candles with
+// {time,open,high,low,close} (time may be ms or ISO string), or standard
+// Twelve Data time_series response {values:[{datetime,open,high,low,close}]}.
+const XAUUSD_FEED_URL = ''; // e.g. your serverless proxy endpoint; do not put secret API keys in client code.
+async function load(){
+ if(!XAUUSD_FEED_URL) throw Error('XAUUSD data feed not configured. Add a live XAUUSD candle endpoint; PAXG/Binance data is intentionally disabled.');
+ const r=await fetch(XAUUSD_FEED_URL); if(!r.ok) throw Error('HTTP '+r.status);
+ const j=await r.json(); const arr=Array.isArray(j)?j:(j.values||j.data||[]);
+ if(!arr.length) throw Error('No XAUUSD candles returned');
+ const candles=arr.map(k=>{
+  const t=k.time??k.datetime??k.timestamp;
+  const ms=typeof t==='number'?(t<1e12?t*1000:t):Date.parse(t);
+  return {t:ms,o:+(k.open??k.o),h:+(k.high??k.h),l:+(k.low??k.l),c:+(k.close??k.c),ct:ms+TF[tf][0]-1};
+ }).filter(k=>Number.isFinite(k.t)&&[k.o,k.h,k.l,k.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
+ if(!candles.length) throw Error('Unsupported XAUUSD candle format');
+ return candles;
+}
 async function refresh(){clearTimeout(timer);document.querySelectorAll('#tfs button').forEach(b=>b.classList.toggle('on',b.dataset.k==tf));
  $('hold').textContent=`فريم الشارت: ${TF[tf][1]} (مدى تحليل الشموع). مدة الاحتفاظ التقريبية: ${TF[tf][2]} — تقدير وليست مختبرة. صلاحية الإشارة: ${GSS.CFG.validBars} شموع.`;
  try{const all=await load(),now=Date.now(),closed=all.filter(c=>c.ct<now);D={all,closed,live:all[all.length-1]};D.I=GSS.indicators(closed);D.fetched=now;$('err').hidden=true;render()}

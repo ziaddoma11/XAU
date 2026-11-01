@@ -19,3 +19,12 @@ Binance Public API: `/api/v3/klines?symbol=PAXGUSDT` (مع احتياط `data-ap
 - الاختبار التاريخي داخل الموقع يعمل على آخر 500 شمعة فقط، وليس دليلاً على أداء مستقبلي.
 - الأرقام الدولارية افتراضية وتعتمد على مواصفات عقدك (قابلة للتعديل). السبريد والعمولة الافتراضيان صفر.
 - مدد الاحتفاظ المعروضة تقديرات.
+
+
+## XAUUSD feed note
+This build removes the Binance PAXGUSDT feed and labels the intended instrument as XAUUSD.
+It does **not** include a live market-data provider or credentials. Set `XAUUSD_FEED_URL`
+in `app.js` to a CORS-enabled endpoint returning XAUUSD candles. Do not expose paid-provider
+API secrets in browser JavaScript; use a serverless proxy. Until configured, the dashboard
+will show a clear feed error and will not invent prices/signals. A generic XAUUSD feed may
+differ from the user's OW Markets MT5 quote.
