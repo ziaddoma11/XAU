@@ -37,6 +37,16 @@ function backtest(c,I,o){const out=[];for(let k=60;k<c.length;k++){const s=signa
  s.pl=r.st=='win'?net(pnl(s.side,s.entry,s.tp[0],o),o):r.st=='loss'?net(pnl(s.side,s.entry,s.sl,o),o):null;out.push(s)}return out}
 function stats(T){const d=T.filter(t=>t.pl!=null),w=d.filter(t=>t.pl>0),l=d.filter(t=>t.pl<=0);let m=0,cur=0;d.forEach(t=>{if(t.pl<=0){cur++;m=Math.max(m,cur)}else cur=0});
  const sum=a=>a.reduce((x,t)=>x+t.pl,0);return{total:T.length,wins:w.length,losses:l.length,open:T.filter(t=>t.res.st=='open').length,amb:T.filter(t=>t.res.st=='ambiguous').length,rate:d.length?100*w.length/d.length:null,net:sum(d),avgW:w.length?sum(w)/w.length:null,avgL:l.length?sum(l)/l.length:null,streak:m}}
-const API={ema,atr,rsi,cmo,supertrend,pivots,indicators,signalAt,evaluate,pnl,net,backtest,stats,CFG};
+// biquote.io feed (same source & tolerant parsing as the user's old site, which showed live data). Shape not verified from here.
+const pick=(o,k)=>{for(const x of k)if(o&&o[x]!=null)return o[x]};
+const toMs=t=>{if(typeof t==='string'&&isNaN(+t))return Date.parse(t);t=+t;return t<1e11?t*1000:t};
+function parseBQ(j,ms){const a=Array.isArray(j)?j:Object.values(j||{}).find(Array.isArray);if(!a)throw Error('شكل استجابة الشموع غير معروف');
+ const cs=a.map(x=>Array.isArray(x)?{t:toMs(x[0]),o:+x[1],h:+x[2],l:+x[3],c:+x[4]}:{t:toMs(pick(x,['t','time','timestamp','ts','openTime','date'])),o:+pick(x,['o','open']),h:+pick(x,['h','high']),l:+pick(x,['l','low']),c:+pick(x,['c','close'])})
+ .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((p,q)=>p.t-q.t);if(!cs.length)throw Error('لا توجد شموع صالحة في الاستجابة');return cs.map(x=>({...x,ct:x.t+ms-1}))}
+function parseTick(j){j=j&&j.data&&!Array.isArray(j.data)?j.data:j;if(Array.isArray(j))j=j[0];const bid=+pick(j,['bid']),ask=+pick(j,['ask']);let p=+pick(j,['mid']);
+ if(!Number.isFinite(p)&&Number.isFinite(bid)&&Number.isFinite(ask))p=(bid+ask)/2;if(!Number.isFinite(p))throw Error('تعذر قراءة السعر من الاستجابة');return{price:p,bid,ask,pct:+pick(j,['dayDiffPercent'])}}
+function aggregate(cs,from,to){const out=[];cs.forEach(k=>{const b=Math.floor(k.t/to)*to,L=out[out.length-1];if(L&&L.t==b){L.h=Math.max(L.h,k.h);L.l=Math.min(L.l,k.l);L.c=k.c;L.n++}else out.push({t:b,o:k.o,h:k.h,l:k.l,c:k.c,n:1})});
+ const per=to/from;return out.filter(x=>x.n==per).map(({n,...x})=>({...x,ct:x.t+to-1}))} // يُسقط المجمّعات غير المكتملة
+const API={parseBQ,parseTick,aggregate,ema,atr,rsi,cmo,supertrend,pivots,indicators,signalAt,evaluate,pnl,net,backtest,stats,CFG};
 if(typeof module!=='undefined')module.exports=API;else root.GSS=API;
 })(this);

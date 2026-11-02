@@ -6,7 +6,7 @@
 - الاختبارات: `node test.js`
 
 ## البيانات
-Binance Public API: `/api/v3/klines?symbol=PAXGUSDT` (مع احتياط `data-api.binance.vision`). PAXG رمز مدعوم بالذهب وليس XAUUSD الفوري، فالسعر يختلف عن OW Markets/MT5. عند فشل الجلب تظهر رسالة خطأ ولا تُعرض أسعار بديلة. لا حاجة لمفتاح API.
+نفس مصدر موقعك السابق: السعر `https://biquote.io/api/XAUUSD` (mid/bid/ask) والشموع `/ohlc?interval=1m|5m|15m|30m|1h&limit=500`، بدون مفتاح. لم أفحص الاستجابة الحية بنفسي، والمحلل يقبل أشكالاً شائعة ويُظهر خطأ واضحاً إن لم يتعرف عليها. إن لم يدعم المصدر 30m أو 1h مباشرة تُجمَّع من شموع 15m. فريم 1m غير مؤكد الدعم. عند الفشل لا تُعرض أسعار بديلة. السعر قد يختلف عن OW Markets.
 
 ## الاستراتيجية (أصلية، مستوحاة من الوصف العام لـ Edge Algo)
 المعلومات العامة المتاحة عن Edge Algo (صفحة TradingView، سكربت بدعوة فقط): انقلاب اتجاه عبر قناة ATR، فلتر RSI وCMO، تأكيد بمحاور قمم/قيعان، SL ثم TP1/TP2/TP3 بنسب 1R/2R/3R. كوده الداخلي غير متاح، فهذا المؤشر **ليس نسخة منه ولا مطابقاً له**.
@@ -19,12 +19,3 @@ Binance Public API: `/api/v3/klines?symbol=PAXGUSDT` (مع احتياط `data-ap
 - الاختبار التاريخي داخل الموقع يعمل على آخر 500 شمعة فقط، وليس دليلاً على أداء مستقبلي.
 - الأرقام الدولارية افتراضية وتعتمد على مواصفات عقدك (قابلة للتعديل). السبريد والعمولة الافتراضيان صفر.
 - مدد الاحتفاظ المعروضة تقديرات.
-
-
-## XAUUSD feed note
-This build removes the Binance PAXGUSDT feed and labels the intended instrument as XAUUSD.
-It does **not** include a live market-data provider or credentials. Set `XAUUSD_FEED_URL`
-in `app.js` to a CORS-enabled endpoint returning XAUUSD candles. Do not expose paid-provider
-API secrets in browser JavaScript; use a serverless proxy. Until configured, the dashboard
-will show a clear feed error and will not invent prices/signals. A generic XAUUSD feed may
-differ from the user's OW Markets MT5 quote.

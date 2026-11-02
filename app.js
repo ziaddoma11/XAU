@@ -1,4 +1,4 @@
-const TF={'1m':[6e4,'دقيقة','من دقائق إلى ساعة تقريباً'],'5m':[3e5,'5 دقائق','حوالي 30 دقيقة إلى 3 ساعات'],'15m':[9e5,'15 دقيقة','حوالي 1 إلى 6 ساعات'],'30m':[18e5,'30 دقيقة','حوالي 3 إلى 12 ساعة'],'1h':[36e5,'ساعة','حوالي 6 ساعات إلى يوم']};
+const TF={'1m':[6e4,'دقيقة','من دقائق إلى ساعة تقريباً','1min'],'5m':[3e5,'5 دقائق','حوالي 30 دقيقة إلى 3 ساعات','5min'],'15m':[9e5,'15 دقيقة','حوالي 1 إلى 6 ساعات','15min'],'30m':[18e5,'30 دقيقة','حوالي 3 إلى 12 ساعة','30min'],'1h':[36e5,'ساعة','حوالي 6 ساعات إلى يوم','1h']};
 let tf=localStorage.getItem('gss_tf')||'15m',D=null,timer;const $=id=>document.getElementById(id);
 const f2=n=>n==null?'—':Number(n).toFixed(2),usd=n=>n==null?'—':(n>=0?'+':'−')+'$'+Math.abs(n).toFixed(2);
 const tz=t=>new Date(t).toLocaleString('ar-LY',{timeZone:'Africa/Tripoli',hour12:false,month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
@@ -7,30 +7,19 @@ $('tfs').innerHTML=Object.keys(TF).map(k=>`<button data-k="${k}">${TF[k][1]}</bu
 $('tfs').onclick=e=>{const k=e.target.dataset.k;if(k){tf=k;localStorage.setItem('gss_tf',k);refresh()}};
 ['lot','vpl','spr','com'].forEach(i=>$(i).oninput=()=>D&&render());
 setInterval(()=>$('clock').textContent='ليبيا: '+new Date().toLocaleTimeString('ar-LY',{timeZone:'Africa/Tripoli',hour12:false}),1000);
-// XAUUSD feed adapter. Configure a public CORS-enabled candle endpoint in
-// XAUUSD_FEED_URL below. Expected response: array of candles with
-// {time,open,high,low,close} (time may be ms or ISO string), or standard
-// Twelve Data time_series response {values:[{datetime,open,high,low,close}]}.
-const XAUUSD_FEED_URL = ''; // e.g. your serverless proxy endpoint; do not put secret API keys in client code.
-async function load(){
- if(!XAUUSD_FEED_URL) throw Error('XAUUSD data feed not configured. Add a live XAUUSD candle endpoint; PAXG/Binance data is intentionally disabled.');
- const r=await fetch(XAUUSD_FEED_URL); if(!r.ok) throw Error('HTTP '+r.status);
- const j=await r.json(); const arr=Array.isArray(j)?j:(j.values||j.data||[]);
- if(!arr.length) throw Error('No XAUUSD candles returned');
- const candles=arr.map(k=>{
-  const t=k.time??k.datetime??k.timestamp;
-  const ms=typeof t==='number'?(t<1e12?t*1000:t):Date.parse(t);
-  return {t:ms,o:+(k.open??k.o),h:+(k.high??k.h),l:+(k.low??k.l),c:+(k.close??k.c),ct:ms+TF[tf][0]-1};
- }).filter(k=>Number.isFinite(k.t)&&[k.o,k.h,k.l,k.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
- if(!candles.length) throw Error('Unsupported XAUUSD candle format');
- return candles;
-}
+const API='https://biquote.io/api/XAUUSD',IV={'1m':'1m','5m':'5m','15m':'15m','30m':'30m','1h':'1h'};
+async function gj(u){const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);return r.json()}
+async function ohlc(iv,ms,lim){return GSS.parseBQ(await gj(`${API}/ohlc?interval=${iv}&limit=${lim}`),ms)}
+async function load(){const ms=TF[tf][0];let cs;
+ try{cs=await ohlc(IV[tf],ms,500)}catch(e){ // احتياط: 30m/1h من شموع 15m عند عدم دعم الفريم مباشرة
+  if(tf=='30m'||tf=='1h'){cs=GSS.aggregate(await ohlc('15m',9e5,500),9e5,ms);if(!cs.length)throw e;D&&(D.agg=true)}else throw e}
+ const tick=GSS.parseTick(await gj(API));return{cs,tick}}
 async function refresh(){clearTimeout(timer);document.querySelectorAll('#tfs button').forEach(b=>b.classList.toggle('on',b.dataset.k==tf));
  $('hold').textContent=`فريم الشارت: ${TF[tf][1]} (مدى تحليل الشموع). مدة الاحتفاظ التقريبية: ${TF[tf][2]} — تقدير وليست مختبرة. صلاحية الإشارة: ${GSS.CFG.validBars} شموع.`;
- try{const all=await load(),now=Date.now(),closed=all.filter(c=>c.ct<now);D={all,closed,live:all[all.length-1]};D.I=GSS.indicators(closed);D.fetched=now;$('err').hidden=true;render()}
- catch(e){D=null;$('err').hidden=false;$('err').textContent='تعذّر جلب بيانات السوق ('+e.message+'). لا تُعرض أسعار بديلة. تحقق من الاتصال أو أن Binance غير محجوبة في منطقتك، ثم أعد المحاولة.';$('cardBody').textContent='لا توجد بيانات.'}
- timer=setTimeout(refresh,30000)}
-function render(){const o=opts(),c=D.closed,I=D.I,n=c.length-1,last=c[n],price=D.live.c,stale=Date.now()-last.ct>3*TF[tf][0]+6e4;
+ try{const {cs:all,tick}=await load(),now=Date.now(),closed=all.filter(c=>c.ct<now);D={all,closed,live:all[all.length-1],tick};D.I=GSS.indicators(closed);D.fetched=now;$('err').hidden=true;render()}
+ catch(e){D=null;$('err').hidden=false;$('err').textContent='تعذّر جلب بيانات السوق ('+e.message+'). لا تُعرض أسعار بديلة. تحقق من الاتصال أو أن المصدر biquote.io متوقف أو يمنع الطلبات من المتصفح.';$('cardBody').textContent='لا توجد بيانات.'}
+ timer=setTimeout(refresh,15000)}
+function render(){const o=opts(),c=D.closed,I=D.I,n=c.length-1,last=c[n],price=D.tick.price,stale=Date.now()-last.ct>3*TF[tf][0]+6e4;
  $('upd').textContent='آخر تحديث: '+tz(D.fetched)+(stale?' (قديمة!)':'');
  const T=GSS.backtest(c,I,o),S=GSS.stats(T),sig=T[T.length-1];let act=null,why='';
  if(sig){const age=n-sig.idx,sameTrend=I.st.T[n]==sig.side;
@@ -41,7 +30,7 @@ function render(){const o=opts(),c=D.closed,I=D.I,n=c.length-1,last=c[n],price=D
   $('cardBody').innerHTML=`<div class="big">${b?'BUY شراء':'SELL بيع'} <span class="tag">${TF[tf][1]}</span></div><div class="lv"><div>الدخول<b>${f2(s.entry)}</b></div><div>وقف الخسارة<b>${f2(s.sl)}</b>${usd(GSS.net(GSS.pnl(s.side,s.entry,s.sl,o),o))}</div><div>TP1 (1:1)<b>${f2(s.tp[0])}</b>${usd(p(0))}</div><div>TP2 (1:2)<b>${f2(s.tp[1])}</b>${usd(p(1))}</div><div>TP3 (1:3)<b>${f2(s.tp[2])}</b>${usd(p(2))}</div><div>الحالي (${f2(price)})<b class="${cur>=0?'g':'r'}">${usd(cur)}</b></div></div>
   <ul>${s.why.map(w=>`<li>${w}</li>`).join('')}</ul><div class="note">ظهرت: ${tz(s.time)} • تنتهي: ${tz(s.time+GSS.CFG.validBars*TF[tf][0])}<br>تُلغى إذا: أُغلقت شمعة عند SL، أو انقلب اتجاه القناة، أو مرت 5 شموع. ادخل يدوياً قرب سعر الدخول فقط؛ إن ابتعد السعر أكثر من 0.3×ATR فتجاهلها.</div>`}
  else $('cardBody').innerHTML=`<div class="big">WAIT انتظار</div>لا توجد إشارة قوية الآن.${sig?`<div class="note">${why} — ${sig.side>0?'BUY':'SELL'} قديمة بتاريخ ${tz(sig.time)} (لا تُدخل عليها).</div>`:''}`;
- $('chips').innerHTML=`<span>السعر ${f2(price)}</span><span>ATR14 ${f2(I.atr[n])}</span><span>RSI14 ${f2(I.rsi[n])}</span><span>CMO ${f2(I.cmo[n])}</span><span>القناة ${I.st.T[n]>0?'صاعدة':'هابطة'}</span>`;
+ $('chips').innerHTML=`<span>السعر ${f2(price)}</span><span>السبريد ${Number.isFinite(D.tick.ask-D.tick.bid)?f2(D.tick.ask-D.tick.bid):'غير متوفر'}</span><span>ATR14 ${f2(I.atr[n])}</span><span>RSI14 ${f2(I.rsi[n])}</span><span>CMO ${f2(I.cmo[n])}</span><span>القناة ${I.st.T[n]>0?'صاعدة':'هابطة'}</span>`;
  $('stats').innerHTML=[['إجمالي الإشارات',S.total],['رابحة',S.wins],['خاسرة',S.losses],['نسبة النجاح',S.rate==null?'—':S.rate.toFixed(0)+'%'],['صافي افتراضي',usd(S.net)],['متوسط ربح',usd(S.avgW)],['متوسط خسارة',usd(S.avgL)],['أقصى خسائر متتالية',S.streak],['غير محسومة',S.amb],['مفتوحة',S.open]].map(x=>`<div class="st">${x[0]}<b>${x[1]}</b></div>`).join('');
  $('jr').innerHTML='<tr><th>الوقت</th><th>النوع</th><th>دخول</th><th>SL</th><th>TP1</th><th>النتيجة</th><th>±</th></tr>'+T.slice(-15).reverse().map(t=>`<tr><td>${tz(t.time)}</td><td class="${t.side>0?'g':'r'}">${t.side>0?'BUY':'SELL'}</td><td>${f2(t.entry)}</td><td>${f2(t.sl)}</td><td>${f2(t.tp[0])}</td><td>${{win:'ربح'+(t.res.hi>1?' (TP'+t.res.hi+')':''),loss:'خسارة',open:'مفتوحة',ambiguous:'غير محسومة'}[t.res.st]}</td><td class="${t.pl>0?'g':'r'}">${usd(t.pl)}</td></tr>`).join('');
  draw(act||(sig&&sig.idx>n-70?sig:null))}

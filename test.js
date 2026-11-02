@@ -30,4 +30,11 @@ const c=mk(arr),I=G.indicators(c),all=[];for(let k=0;k<c.length;k++){const x=G.s
 console.log('signals on synthetic reversal (logic test only, NOT performance):',all.map(x=>`${x.side>0?'BUY':'SELL'}@${x.idx}`).join(',')||'none');
 t('stable',(()=>{const c2=c.slice(0,100),I2=G.indicators(c2);return all.filter(x=>x.idx<100).every(x=>{const y=G.signalAt(c2,I2,x.idx);return y&&y.side==x.side&&Math.abs(y.entry-x.entry)<1e-9&&Math.abs(y.sl-x.sl)<1e-9})})());
 all.forEach(x=>{t('levels',x.side>0?(x.sl<x.entry&&x.tp[0]>x.entry&&x.tp[2]>x.tp[1]):(x.sl>x.entry&&x.tp[0]<x.entry&&x.tp[2]<x.tp[1]));t('rr',Math.abs(Math.abs(x.tp[1]-x.entry)/x.risk-2)<1e-9)});
+const A=G.parseBQ([{t:1700000300,o:'2',h:'3',l:'1',c:'2.5'},{t:1700000000,o:1,h:2,l:0.5,c:1.5}],3e5);
+t('bq obj',A.length==2&&A[0].t==1700000000000&&A[1].c==2.5&&A[0].ct==A[0].t+299999);
+const B=G.parseBQ({data:[[1700000000000,1,2,0.5,1.5]]},3e5);t('bq arr',B.length==1&&B[0].h==2);
+let th=0;try{G.parseBQ({x:1},6e4)}catch(e){th=1}t('bq err',th);
+const P=G.parseTick({bid:2000,ask:2000.4});t('tick',Math.abs(P.price-2000.2)<1e-9);t('tick mid',G.parseTick({mid:5}).price==5);
+const m15=[0,1,2,3,4].map(i=>({t:i*9e5,o:i,h:i+2,l:i-1,c:i+.5})),ag=G.aggregate(m15,9e5,18e5);
+t('agg',ag.length==2&&ag[0].o==0&&ag[0].h==3&&ag[0].l==-1&&ag[0].c==1.5&&ag[1].c==3.5);
 console.log(`passed ${ok}, failed ${bad}`);process.exit(bad?1:0);
